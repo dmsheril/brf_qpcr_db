@@ -1,8 +1,10 @@
 import pandas as pd
+import numpy as np
 import glob
 import time
 
 print("This is the top of the process_qpcr module")
+
 
 def read_data_from_curve_file(file):
     print("Reading data from curve file " + file)
@@ -10,6 +12,7 @@ def read_data_from_curve_file(file):
     dataHex = pd.read_excel(file, sheet_name='HEX')
     dataInfo = pd.read_excel(file, sheet_name='Run Information')
     return dataFam, dataHex, dataInfo
+
 
 def read_data_from_cq_file(file):
     print("Reading data from Cq file " + file)
@@ -33,11 +36,13 @@ def write_data_to_file(outfile, dataCq, dataCurve):
     dataCurve.to_excel(writer, sheet_name="Curve", index=False)
     writer.save()
 
+
 def standardizeWellName(nameIn):
     nameAlpha = nameIn[0]
     nameNumber = int(nameIn[1:])
     nameOut = nameAlpha + "{:02d}".format(nameNumber)
     return nameOut
+
 
 def formatCurveData(curveDataIn, filename, fluorName):
     curveData = curveDataIn.copy()
@@ -54,10 +59,11 @@ def formatCurveData(curveDataIn, filename, fluorName):
 
     return curveData
 
+
 def formatCqData(cqDataIn, filename, notes, runStart, baseSerial):
     cqData = cqDataIn.copy()
-    colsToKeep = ["Well","Fluor","Target","Content","Sample","Biological Set Name",\
-                  "Cq","Starting Quantity (SQ)","Cq Std. Dev","SQ Std. Dev"]
+    colsToKeep = ["Well", "Fluor", "Target", "Content", "Sample", "Biological Set Name", \
+                  "Cq", "Starting Quantity (SQ)", "Cq Std. Dev", "SQ Std. Dev"]
     cqData = cqData[colsToKeep]
     colFilename = [filename] * cqData.shape[0]
     colNotes = [notes] * cqData.shape[0]
@@ -75,6 +81,33 @@ def formatInfoData(infoDataIn):
     infoData = infoData.T.reset_index().T
     infoData.reset_index(inplace=True, drop=True)
     return infoData
+
+
+def findBTforCq(curvedata, Cq):
+    # find the baseline threshold given a curve and a Cq value
+    x1 = np.floor(Cq)
+    x2 = np.ceil(Cq)
+    y1 = curvedata.loc[[int(x1)], ["RFU"]].values[0]
+    y2 = curvedata.loc[[int(x2)], ["RFU"]].values[0]
+    m = (y2 - y1) / (x2 - x1)
+    b = y2 - m * x2
+    BT = m * Cq + b
+    BT = BT[0]
+    return BT
+
+
+def findCqforBT(curvedata, BT):
+    # find Cq given a curve and a baseline threshold value
+    diffBT = curvedata - BT
+    if np.any(diffBT > 0):
+        idxBeforeCrossing = np.where(diffBT < 0)[0][-1]
+        Cq = curvedata.index[idxBeforeCrossing] + (BT - curvedata.values[idxBeforeCrossing]) \
+             / (curvedata.values[idxBeforeCrossing + 1] - curvedata.values[idxBeforeCrossing])
+        Cq = Cq[0]
+    else:
+        Cq = np.nan
+    return Cq
+
 
 def main():
     path = "/Users/a27inchMac/Desktop/SARS2 qPCR Data/data_to_process/"
