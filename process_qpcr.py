@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import glob
 import time
+import os
 
 print("This is the top of the process_qpcr module")
 
@@ -107,6 +108,28 @@ def findCqforBT(curvedata, BT):
     else:
         Cq = np.nan
     return Cq
+
+
+def doFileCleanup(sourcepath, destpath):
+    try:
+        os.makedirs(destpath)
+    except OSError as error:
+        print(error)
+    filesToKeep = glob.glob(path + '*Amplification Results.xlsx')
+    filesToKeep.append(glob.glob(path + '*Cq Results.xlsx'))
+
+    # for file in filesToKeep:
+
+    filesToDelete = glob.glob(sourcepath + '*ANOVA Results.xlsx')
+    filesToDelete.append(glob.glob(sourcepath + '*End Point Results.xlsx'))
+    filesToDelete.append(glob.glob(sourcepath + '*Bar Chart.xlsx'))
+    filesToDelete.append(glob.glob(sourcepath + '*Melt Curve Plate View Results.xlsx'))
+    filesToDelete.append(glob.glob(sourcepath + '*Quantification Plate View Results.xlsx'))
+    filesToDelete.append(glob.glob(sourcepath + '*Quantification Summary.xlsx'))
+    filesToDelete.append(glob.glob(sourcepath + '*Standard Curve Results.xlsx'))
+
+
+
 
 
 def main():
