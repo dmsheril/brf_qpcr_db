@@ -3,7 +3,6 @@ import numpy as np
 import glob
 import time
 import os
-import sys
 
 print("This is the top of the process_qpcr module")
 
@@ -112,55 +111,37 @@ def findCqforBT(curvedata, BT):
 
 
 def doFileCleanup(sourcepath, destpath):
-    filesToKeep = glob.glob(sourcepath + '*Amplification Results.xlsx') \
-                  + glob.glob(sourcepath + '*Cq Results.xlsx')
+    try:
+        os.makedirs(destpath)
+    except OSError as error:
+        print(error)
+    filesToKeep = glob.glob(path + '*Amplification Results.xlsx')
+    filesToKeep.append(glob.glob(path + '*Cq Results.xlsx'))
 
-    if len(filesToKeep) > 0:
-        try:
-            os.makedirs(destpath)
-        except OSError as error:
-            print(error)
+    # for file in filesToKeep:
 
-        for file in filesToKeep:
-            head, tail = os.path.split(file)
-            os.rename(file, os.path.join(destpath, tail))
-            print("Moved " + tail + " to " + destpath)
+    filesToDelete = glob.glob(sourcepath + '*ANOVA Results.xlsx')
+    filesToDelete.append(glob.glob(sourcepath + '*End Point Results.xlsx'))
+    filesToDelete.append(glob.glob(sourcepath + '*Bar Chart.xlsx'))
+    filesToDelete.append(glob.glob(sourcepath + '*Melt Curve Plate View Results.xlsx'))
+    filesToDelete.append(glob.glob(sourcepath + '*Quantification Plate View Results.xlsx'))
+    filesToDelete.append(glob.glob(sourcepath + '*Quantification Summary.xlsx'))
+    filesToDelete.append(glob.glob(sourcepath + '*Standard Curve Results.xlsx'))
 
-    filesToDelete = glob.glob(sourcepath + '*ANOVA Results.xlsx') \
-                    + glob.glob(sourcepath + '*End Point Results.xlsx') \
-                    + glob.glob(sourcepath + '*Bar Chart.xlsx') \
-                    + glob.glob(sourcepath + '*Melt Curve Plate View Results.xlsx') \
-                    + glob.glob(sourcepath + '*Quantification Plate View Results.xlsx') \
-                    + glob.glob(sourcepath + '*Quantification Summary.xlsx') \
-                    + glob.glob(sourcepath + '*Allelic Discrimination Results.xlsx') \
-                    + glob.glob(sourcepath + '*Standard Curve Results.xlsx')
 
-    for file in filesToDelete:
-        os.remove(file)
-        head, tail = os.path.split(file)
-        print("Deleted " + tail + " from " + head)
 
-    return filesToKeep, filesToDelete
 
 
 def main():
     path = "/Users/a27inchMac/Desktop/SARS2 qPCR Data/data_to_process/"
+    # path = "/Users/a27inchMac/Desktop/SARS2 qPCR Data/Pipeline_test_20201005/"
 
-    filesAmp = glob.glob(path + '[!~]*Amplification Results.xlsx')  # ignores temp files
-    filesCq = glob.glob(path + '[!~]*Cq Results.xlsx')  # ignores temp files
-
-    if (len(filesAmp) < 1) | (len(filesCq) < 1):
-        print("No files to process in " + path + " - done!")
-        sys.exit(0)
-
-    assert (len(filesAmp) == len(filesCq)), "Number of files for Amp and Cq must match - check for missing files"
-
-    filesAmp.sort()
-    filesCq.sort()
     allCurve = []
     allCq = []
 
-    for file in filesAmp:
+    files = glob.glob(path + '[!~]*Amplification Results.xlsx')  # ignores temp files
+    files.sort()
+    for file in files:
         (currFam, currHex, currInfoCurve) = read_data_from_curve_file(file)
         currInfoCurve2 = formatInfoData(currInfoCurve)
         filename = currInfoCurve2.at[0, 1]
@@ -168,7 +149,9 @@ def main():
         currHex2 = formatCurveData(currHex, filename, fluorName="HEX")
         allCurve.append(pd.concat([currFam2, currHex2]))
 
-    for file in filesCq:
+    files = glob.glob(path + '[!~]*Cq Results.xlsx')  # ignores temp files
+    files.sort()
+    for file in files:
         (currCq, currInfoCq) = read_data_from_cq_file(file)
         currInfoCq2 = formatInfoData(currInfoCq)
         filename = currInfoCq2.at[0, 1]
@@ -178,18 +161,24 @@ def main():
         currCq2 = formatCqData(currCq, filename, notes, runStart, baseSerial)
         allCq.append(currCq2)
 
-    timestr = time.strftime("%Y%m%d-%H%M%S", time.localtime())
-    outfile = os.path.join(path, "output_" + timestr + ".xlsx")
-    procdir = os.path.join(path, "processed_" + timestr)
+    outfile = path + "output_" + time.strftime("%Y%m%d-%H%M%S", time.localtime()) + ".xlsx"
 
     cqFinal = allCq.pop(0)
     curveFinal = allCurve.pop(0)
+
+    # for cq in allCq:
+    #     cqFinal = pd.concat([cqFinal, cq])
+    #
+    # for curve in allCurve:
+    #     curveFinal = pd.concat([curveFinal, curve])
+
     for (cq, curve) in zip(allCq, allCurve):
         cqFinal = pd.concat([cqFinal, cq])
         curveFinal = pd.concat([curveFinal, curve])
-        write_data_to_file(outfile, cqFinal, curveFinal)
 
-    doFileCleanup(path, procdir)
+    # write_data_to_file(outfile, allCq[0], allCurve[0])
+    write_data_to_file(outfile, cqFinal, curveFinal)
+
     print("done!")
 
 
