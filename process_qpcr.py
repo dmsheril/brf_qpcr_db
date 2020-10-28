@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import glob
 import time
 import os
@@ -83,32 +82,6 @@ def formatInfoData(infoDataIn):
     infoData = infoData.T.reset_index().T
     infoData.reset_index(inplace=True, drop=True)
     return infoData
-
-
-def findBTforCq(curvedata, Cq):
-    # find the baseline threshold given a curve and a Cq value
-    x1 = np.floor(Cq)
-    x2 = np.ceil(Cq)
-    y1 = curvedata.loc[[int(x1)], ["RFU"]].values[0]
-    y2 = curvedata.loc[[int(x2)], ["RFU"]].values[0]
-    m = (y2 - y1) / (x2 - x1)
-    b = y2 - m * x2
-    BT = m * Cq + b
-    BT = BT[0]
-    return BT
-
-
-def findCqforBT(curvedata, BT):
-    # find Cq given a curve and a baseline threshold value
-    diffBT = curvedata - BT
-    if np.any(diffBT > 0):
-        idxBeforeCrossing = np.where(diffBT < 0)[0][-1]
-        Cq = curvedata.index[idxBeforeCrossing] + (BT - curvedata.values[idxBeforeCrossing]) \
-             / (curvedata.values[idxBeforeCrossing + 1] - curvedata.values[idxBeforeCrossing])
-        Cq = Cq[0]
-    else:
-        Cq = np.nan
-    return Cq
 
 
 def doFileCleanup(sourcepath, destpath):
