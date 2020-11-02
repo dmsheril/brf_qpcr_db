@@ -3,14 +3,25 @@ import glob
 import time
 import os
 import sys
+from xlrd import XLRDError
 
 print("This is the top of the process_qpcr module")
 
 
 def read_data_from_curve_file(file):
     print("Reading data from curve file " + file)
-    dataFam = pd.read_excel(file, sheet_name='FAM')
-    dataHex = pd.read_excel(file, sheet_name='HEX')
+    try:
+        dataFam = pd.read_excel(file, sheet_name='FAM')
+    except XLRDError:
+        print("Sheet FAM not found in file: " + file)
+        dataFam = pd.DataFrame()
+
+    try:
+        dataHex = pd.read_excel(file, sheet_name='HEX')
+    except XLRDError:
+        print("Sheet HEX not found in file: " + file)
+        dataHex = pd.DataFrame()
+
     dataInfo = pd.read_excel(file, sheet_name='Run Information')
     return dataFam, dataHex, dataInfo
 
@@ -47,17 +58,17 @@ def standardizeWellName(nameIn):
 
 def formatCurveData(curveDataIn, filename, fluorName):
     curveData = curveDataIn.copy()
-    curveData = curveData.transpose()
-    curveData.columns = ["Cycle{:02d}".format(n) for n in range(1, curveData.shape[1] + 1)]
-    curveData = curveData.drop(curveData.index[0:2])
-    curveData.index.name = "Well"
-    curveData.reset_index(inplace=True)
-    curveData["Well"] = [standardizeWellName(name) for name in curveData['Well']]
-    colFluor = [fluorName] * curveData.shape[0]
-    curveData.insert(loc=1, column="Fluor", value=colFluor)
-    colFilename = [filename] * curveData.shape[0]
-    curveData.insert(loc=2, column="File name", value=colFilename)
-
+    if not curveData.empty:
+        curveData = curveData.transpose()
+        curveData.columns = ["Cycle{:02d}".format(n) for n in range(1, curveData.shape[1] + 1)]
+        curveData = curveData.drop(curveData.index[0:2])
+        curveData.index.name = "Well"
+        curveData.reset_index(inplace=True)
+        curveData["Well"] = [standardizeWellName(name) for name in curveData['Well']]
+        colFluor = [fluorName] * curveData.shape[0]
+        curveData.insert(loc=1, column="Fluor", value=colFluor)
+        colFilename = [filename] * curveData.shape[0]
+        curveData.insert(loc=2, column="File name", value=colFilename)
     return curveData
 
 
@@ -85,8 +96,8 @@ def formatInfoData(infoDataIn):
 
 
 def doFileCleanup(sourcepath, destpath):
-    filesToKeep = glob.glob(sourcepath + '*Amplification Results.xlsx') \
-                  + glob.glob(sourcepath + '*Cq Results.xlsx')
+    filesToKeep = glob.glob(os.path.join(sourcepath, '*Amplification Results.xlsx')) \
+                  + glob.glob(os.path.join(sourcepath, '*Cq Results.xlsx'))
 
     if len(filesToKeep) > 0:
         try:
@@ -99,14 +110,14 @@ def doFileCleanup(sourcepath, destpath):
             os.rename(file, os.path.join(destpath, tail))
             print("Moved " + tail + " to " + destpath)
 
-    filesToDelete = glob.glob(sourcepath + '*ANOVA Results.xlsx') \
-                    + glob.glob(sourcepath + '*End Point Results.xlsx') \
-                    + glob.glob(sourcepath + '*Bar Chart.xlsx') \
-                    + glob.glob(sourcepath + '*Melt Curve Plate View Results.xlsx') \
-                    + glob.glob(sourcepath + '*Quantification Plate View Results.xlsx') \
-                    + glob.glob(sourcepath + '*Quantification Summary.xlsx') \
-                    + glob.glob(sourcepath + '*Allelic Discrimination Results.xlsx') \
-                    + glob.glob(sourcepath + '*Standard Curve Results.xlsx')
+    filesToDelete = glob.glob(os.path.join(sourcepath, '*ANOVA Results.xlsx')) \
+                    + glob.glob(os.path.join(sourcepath, '*End Point Results.xlsx')) \
+                    + glob.glob(os.path.join(sourcepath, '*Bar Chart.xlsx')) \
+                    + glob.glob(os.path.join(sourcepath, '*Melt Curve Plate View Results.xlsx')) \
+                    + glob.glob(os.path.join(sourcepath, '*Quantification Plate View Results.xlsx')) \
+                    + glob.glob(os.path.join(sourcepath, '*Quantification Summary.xlsx')) \
+                    + glob.glob(os.path.join(sourcepath, '*Allelic Discrimination Results.xlsx')) \
+                    + glob.glob(os.path.join(sourcepath, '*Standard Curve Results.xlsx'))
 
     for file in filesToDelete:
         os.remove(file)
@@ -117,10 +128,11 @@ def doFileCleanup(sourcepath, destpath):
 
 
 def main():
-    path = "/Users/a27inchMac/Desktop/SARS2 qPCR Data/data_to_process/"
+    # path = "/Users/a27inchMac/Desktop/SARS2 qPCR Data/data_to_process/"
+    path = "/Users/a27inchMac/Desktop/Delsey/SARS2/data_proc_test"
 
-    filesAmp = glob.glob(path + '[!~]*Amplification Results.xlsx')  # ignores temp files
-    filesCq = glob.glob(path + '[!~]*Cq Results.xlsx')  # ignores temp files
+    filesAmp = glob.glob(os.path.join(path, '[!~]*Amplification Results.xlsx'))  # ignores temp files
+    filesCq = glob.glob(os.path.join(path, '[!~]*Cq Results.xlsx'))  # ignores temp files
 
     if (len(filesAmp) < 1) | (len(filesCq) < 1):
         print("No files to process in " + path + " - done!")
@@ -160,8 +172,8 @@ def main():
     for (cq, curve) in zip(allCq, allCurve):
         cqFinal = pd.concat([cqFinal, cq])
         curveFinal = pd.concat([curveFinal, curve])
-        write_data_to_file(outfile, cqFinal, curveFinal)
 
+    write_data_to_file(outfile, cqFinal, curveFinal)
     doFileCleanup(path, procdir)
     print("done!")
 
