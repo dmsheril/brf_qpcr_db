@@ -128,8 +128,7 @@ def doFileCleanup(sourcepath, destpath):
 
 
 def main():
-    # path = "/Users/a27inchMac/Desktop/SARS2 qPCR Data/data_to_process/"
-    path = "/Users/a27inchMac/Desktop/Delsey/SARS2/data_proc_test"
+    path = "/Users/a27inchMac/Desktop/SARS2 qPCR Data/data_to_process/"
 
     filesAmp = glob.glob(os.path.join(path, '[!~]*Amplification Results.xlsx'))  # ignores temp files
     filesCq = glob.glob(os.path.join(path, '[!~]*Cq Results.xlsx'))  # ignores temp files
